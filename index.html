@@ -15,6 +15,8 @@
     <!-- Firebase App & Realtime Database SDK (v8 Standalone) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <!-- Chart.js (Grafik Kütüphanesi) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
       @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
       body {
@@ -884,9 +886,23 @@
               <i class="fa-solid fa-clock-rotate-left text-slate-500"></i> Mal
               Kabul ve Sevkiyat Geçmişi
             </h3>
-            <span class="text-xs text-slate-500 font-medium" id="historyCounter"
-              >0 sevkiyat</span
-            >
+            <div class="flex items-center gap-2">
+              <button
+                id="btnDeleteSelectedShipments"
+                onclick="deleteSelectedShipments()"
+                class="hidden text-[10px] font-bold bg-rose-100 text-rose-700 px-2 py-1 rounded-lg border border-rose-200 shadow-sm active:scale-95 transition"
+              >
+                <i class="fa-solid fa-trash-can"></i> Seçilenleri Sil (<span
+                  id="selectedShipmentCount"
+                  >0</span
+                >)
+              </button>
+              <span
+                class="text-xs text-slate-500 font-medium"
+                id="historyCounter"
+                >0 sevkiyat</span
+              >
+            </div>
           </div>
 
           <!-- Arama ve Filtreleme -->
@@ -971,6 +987,19 @@
             >
               0,00 ₺
             </p>
+          </div>
+        </div>
+
+        <!-- Finans Dashboard Grafik -->
+        <div
+          class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-2"
+        >
+          <h3 class="text-xs font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-chart-pie text-indigo-500"></i> Gelir / Gider
+            Analizi (Son 7 Gün)
+          </h3>
+          <div class="h-40 w-full relative">
+            <canvas id="financeChart"></canvas>
           </div>
         </div>
 
@@ -1079,11 +1108,23 @@
               <i class="fa-solid fa-list-check text-slate-500"></i> Banka ve
               Gider Geçmişi
             </h3>
-            <span
-              class="text-xs text-slate-500 font-medium"
-              id="finHistoryCounter"
-              >0 işlem</span
-            >
+            <div class="flex items-center gap-2">
+              <button
+                id="btnDeleteSelectedFinances"
+                onclick="deleteSelectedFinances()"
+                class="hidden text-[10px] font-bold bg-rose-100 text-rose-700 px-2 py-1 rounded-lg border border-rose-200 shadow-sm active:scale-95 transition"
+              >
+                <i class="fa-solid fa-trash-can"></i> Seçilenleri Sil (<span
+                  id="selectedFinanceCount"
+                  >0</span
+                >)
+              </button>
+              <span
+                class="text-xs text-slate-500 font-medium"
+                id="finHistoryCounter"
+                >0 işlem</span
+              >
+            </div>
           </div>
           <div id="finHistoryContainer" class="space-y-2.5"></div>
         </div>
@@ -1690,6 +1731,10 @@
       let selectedMilkVolume = 5;
       let currentFinanceType = "expense";
 
+      let selectedShipments = new Set();
+      let selectedFinances = new Set();
+      let finChartInstance = null;
+
       const EXPENSE_CATEGORIES = [
         "Doğalgaz",
         "Elektrik",
@@ -2008,6 +2053,45 @@
         }
       }
 
+      function handleShipmentSelection() {
+        const checkboxes = document.querySelectorAll(".shipment-checkbox");
+        selectedShipments.clear();
+        checkboxes.forEach((cb) => {
+          if (cb.checked) selectedShipments.add(cb.value);
+        });
+        const btn = document.getElementById("btnDeleteSelectedShipments");
+        const countSpan = document.getElementById("selectedShipmentCount");
+        if (selectedShipments.size > 0) {
+          btn.classList.remove("hidden");
+          countSpan.innerText = selectedShipments.size;
+        } else {
+          btn.classList.add("hidden");
+        }
+      }
+
+      function deleteSelectedShipments() {
+        if (
+          !confirm(
+            `${selectedShipments.size} adet kaydı topluca silmek istediğinize emin misiniz?`,
+          )
+        )
+          return;
+        const updates = {};
+        selectedShipments.forEach((id) => {
+          updates[`shipments/${id}`] = null;
+        });
+        activeStoreRef
+          .update(updates)
+          .then(() => {
+            logActivity(
+              `${selectedShipments.size} adet sevkiyat kaydı topluca silindi.`,
+            );
+            selectedShipments.clear();
+            handleShipmentSelection();
+          })
+          .catch((err) => alert("Silme hatası: " + err.message));
+      }
+
       function togglePaymentStatus(id) {
         const shipment = records.find((r) => r.id === id);
         if (shipment) {
@@ -2114,10 +2198,109 @@
         }
       }
 
+      function handleFinanceSelection() {
+        const checkboxes = document.querySelectorAll(".finance-checkbox");
+        selectedFinances.clear();
+        checkboxes.forEach((cb) => {
+          if (cb.checked) selectedFinances.add(cb.value);
+        });
+        const btn = document.getElementById("btnDeleteSelectedFinances");
+        const countSpan = document.getElementById("selectedFinanceCount");
+        if (selectedFinances.size > 0) {
+          btn.classList.remove("hidden");
+          countSpan.innerText = selectedFinances.size;
+        } else {
+          btn.classList.add("hidden");
+        }
+      }
+
+      function deleteSelectedFinances() {
+        if (
+          !confirm(
+            `${selectedFinances.size} adet finansal işlemi topluca silmek istediğinize emin misiniz?`,
+          )
+        )
+          return;
+        const updates = {};
+        selectedFinances.forEach((id) => {
+          updates[`finances/${id}`] = null;
+        });
+        activeStoreRef
+          .update(updates)
+          .then(() => {
+            logActivity(
+              `${selectedFinances.size} adet finansal işlem topluca silindi.`,
+            );
+            selectedFinances.clear();
+            handleFinanceSelection();
+          })
+          .catch((err) => alert("Silme hatası: " + err.message));
+      }
+
+      function renderFinanceChart() {
+        const ctx = document.getElementById("financeChart");
+        if (!ctx) return;
+        const now = new Date();
+        const labels = [];
+        const incomes = [];
+        const expenses = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(now);
+          d.setDate(now.getDate() - i);
+          const dateStr = d.toLocaleDateString("tr-TR");
+          labels.push(dateStr.slice(0, 5));
+          let inc = 0,
+            exp = 0;
+          financeRecords.forEach((f) => {
+            const fDate = new Date(f.rawDate || f.timestamp);
+            if (fDate.toLocaleDateString("tr-TR") === dateStr) {
+              if (f.type === "income") inc += f.amount || 0;
+              else exp += f.amount || 0;
+            }
+          });
+          incomes.push(inc);
+          expenses.push(exp);
+        }
+        if (finChartInstance) finChartInstance.destroy();
+        finChartInstance = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: "Gelir",
+                data: incomes,
+                backgroundColor: "#10b981",
+                borderRadius: 4,
+              },
+              {
+                label: "Gider",
+                data: expenses,
+                backgroundColor: "#f43f5e",
+                borderRadius: 4,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: { beginAtZero: true, ticks: { font: { size: 9 } } },
+              x: { ticks: { font: { size: 9 } } },
+            },
+          },
+        });
+      }
+
       function renderFinance() {
         const container = document.getElementById("finHistoryContainer");
         document.getElementById("finHistoryCounter").innerText =
           financeRecords.length + " işlem";
+
+        // Yeni render edildiği için seçimleri temizliyoruz
+        selectedFinances.clear();
+        handleFinanceSelection();
 
         let totalIncome = 0,
           totalExpense = 0;
@@ -2138,7 +2321,8 @@
               const sign = isInc ? "+" : "-";
 
               return `
-            <div class="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-xs flex items-center justify-between gap-2">
+            <div class="bg-white rounded-2xl p-3 pl-10 border border-slate-200/80 shadow-xs flex items-center justify-between gap-2 relative">
+              <input type="checkbox" class="finance-checkbox absolute top-1/2 -translate-y-1/2 left-3 w-4 h-4 text-blue-600 bg-slate-100 border-slate-300 rounded" value="${f.id}" onchange="handleFinanceSelection()">
               <div class="flex items-center gap-2.5">
                 <div class="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center">
                   <i class="fa-solid ${icon} text-xs"></i>
@@ -2171,6 +2355,8 @@
         netElem.innerText =
           net.toLocaleString("tr-TR", { minimumFractionDigits: 2 }) + " ₺";
         netElem.className = `text-sm sm:text-base font-black mt-1 ${net >= 0 ? "text-blue-600" : "text-rose-600"}`;
+
+        renderFinanceChart();
       }
 
       // ==========================================
@@ -2668,6 +2854,10 @@
         ).toLowerCase();
         const paymentFilter = document.getElementById("filterPayment").value;
 
+        // Yeni render edildiği için seçimleri temizliyoruz
+        selectedShipments.clear();
+        handleShipmentSelection();
+
         const filtered = records.filter((r) => {
           if (paymentFilter === "paid" && !r.isPaid) return false;
           if (paymentFilter === "unpaid" && r.isPaid) return false;
@@ -2710,7 +2900,8 @@
             }
 
             return `
-          <div class="rounded-2xl p-3.5 border ${r.isPaid ? "bg-emerald-50/90 border-emerald-300" : "bg-rose-50/90 border-rose-300"} shadow-sm relative space-y-2">
+          <div class="rounded-2xl p-3.5 pl-10 border ${r.isPaid ? "bg-emerald-50/90 border-emerald-300" : "bg-rose-50/90 border-rose-300"} shadow-sm relative space-y-2">
+            <input type="checkbox" class="shipment-checkbox absolute top-4 left-3 w-4 h-4 text-blue-600 bg-slate-100 border-slate-300 rounded" value="${r.id}" onchange="handleShipmentSelection()">
             <button onclick="deleteShipment('${r.id}')" class="absolute top-3 right-3 text-slate-400 hover:text-rose-600"><i class="fa-solid fa-trash-can text-xs"></i></button>
             <div class="flex items-center gap-2">
               <div class="w-8 h-8 rounded-lg ${r.isPaid ? "bg-emerald-200 text-emerald-800" : "bg-rose-200 text-rose-800"} flex items-center justify-center"><i class="fa-solid fa-truck-ramp-box"></i></div>

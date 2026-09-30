@@ -17,6 +17,8 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <!-- Chart.js (Grafik Kütüphanesi) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS (Excel Dışa Aktarım Kütüphanesi) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
       @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
       body {
@@ -97,23 +99,30 @@
     </header>
 
     <main class="max-w-xl mx-auto p-4 space-y-4">
-      <!-- ANA SAYFA SEKMELERİ -->
+      <!-- ANA SAYFA SEKMELERİ (3 Sütuna Çıkarıldı) -->
       <div
-        class="grid grid-cols-2 gap-2 p-1 bg-white border border-slate-200/80 rounded-2xl shadow-xs"
+        class="grid grid-cols-3 gap-1.5 p-1 bg-white border border-slate-200/80 rounded-2xl shadow-xs"
       >
         <button
           onclick="switchMainTab('shipment')"
           id="mainTabShipment"
-          class="py-2.5 text-xs font-bold rounded-xl transition bg-blue-600 text-white shadow-xs flex items-center justify-center gap-1.5"
+          class="py-2 text-[11px] sm:text-xs font-bold rounded-xl transition bg-blue-600 text-white shadow-xs flex items-center justify-center gap-1"
         >
-          <i class="fa-solid fa-truck-ramp-box"></i> Mal Kabul & Sevkiyat
+          <i class="fa-solid fa-truck-ramp-box"></i> Sevkiyat
         </button>
         <button
           onclick="switchMainTab('finance')"
           id="mainTabFinance"
-          class="py-2.5 text-xs font-bold rounded-xl transition text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1.5"
+          class="py-2 text-[11px] sm:text-xs font-bold rounded-xl transition text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1"
         >
-          <i class="fa-solid fa-wallet"></i> Giderler & Banka
+          <i class="fa-solid fa-wallet"></i> Kasa
+        </button>
+        <button
+          onclick="switchMainTab('veresiye')"
+          id="mainTabVeresiye"
+          class="py-2 text-[11px] sm:text-xs font-bold rounded-xl transition text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1"
+        >
+          <i class="fa-solid fa-book-open"></i> Veresiye
         </button>
       </div>
 
@@ -888,6 +897,12 @@
             </h3>
             <div class="flex items-center gap-2">
               <button
+                onclick="exportToExcel('shipment')"
+                class="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg border border-emerald-200 shadow-sm active:scale-95 transition"
+              >
+                <i class="fa-solid fa-file-excel"></i> Excel
+              </button>
+              <button
                 id="btnDeleteSelectedShipments"
                 onclick="deleteSelectedShipments()"
                 class="hidden text-[10px] font-bold bg-rose-100 text-rose-700 px-2 py-1 rounded-lg border border-rose-200 shadow-sm active:scale-95 transition"
@@ -1110,6 +1125,12 @@
             </h3>
             <div class="flex items-center gap-2">
               <button
+                onclick="exportToExcel('finance')"
+                class="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg border border-emerald-200 shadow-sm active:scale-95 transition"
+              >
+                <i class="fa-solid fa-file-excel"></i> Excel
+              </button>
+              <button
                 id="btnDeleteSelectedFinances"
                 onclick="deleteSelectedFinances()"
                 class="hidden text-[10px] font-bold bg-rose-100 text-rose-700 px-2 py-1 rounded-lg border border-rose-200 shadow-sm active:scale-95 transition"
@@ -1127,6 +1148,88 @@
             </div>
           </div>
           <div id="finHistoryContainer" class="space-y-2.5"></div>
+        </div>
+      </div>
+
+      <!-- ================= 3. VERESİYE TAKİP GÖRÜNÜMÜ ================= -->
+      <div id="veresiyeView" class="hidden space-y-4">
+        <!-- Veresiye Özet -->
+        <div
+          class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex justify-between items-center"
+        >
+          <div>
+            <span
+              class="text-[10px] font-semibold text-slate-500 block uppercase tracking-wider"
+              >Dışarıdaki Toplam Alacak (Cari)</span
+            >
+            <p
+              class="text-2xl font-black text-blue-600 mt-1"
+              id="veresiyeTotalBalance"
+            >
+              0,00 ₺
+            </p>
+          </div>
+          <button
+            onclick="exportToExcel('veresiye')"
+            class="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-3 py-2.5 rounded-xl border border-emerald-200 shadow-sm active:scale-95 transition flex items-center gap-1.5"
+          >
+            <i class="fa-solid fa-file-excel text-sm"></i> Excel
+          </button>
+        </div>
+
+        <!-- Müşteri Ekle -->
+        <div
+          class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-3"
+        >
+          <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-user-plus text-blue-600"></i> Yeni Cari /
+            Müşteri Ekle
+          </h2>
+          <div class="grid grid-cols-2 gap-3">
+            <input
+              type="text"
+              id="veresiyeName"
+              placeholder="Müşteri Adı / Unvanı"
+              class="w-full border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-700 outline-none bg-slate-50"
+            />
+            <input
+              type="text"
+              id="veresiyePhone"
+              placeholder="Telefon (Opsiyonel)"
+              class="w-full border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-700 outline-none bg-slate-50"
+            />
+          </div>
+          <button
+            type="button"
+            onclick="addVeresiyeCustomer()"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl shadow-md shadow-blue-500/20 active:scale-[0.99] transition text-xs flex items-center justify-center gap-1.5"
+          >
+            <i class="fa-solid fa-plus"></i> Müşteri Oluştur
+          </button>
+        </div>
+
+        <!-- Müşteri Listesi -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between px-1">
+            <h3
+              class="text-sm font-bold text-slate-800 flex items-center gap-2"
+            >
+              <i class="fa-solid fa-users text-slate-500"></i> Cari Listesi
+            </h3>
+            <span
+              class="text-xs text-slate-500 font-medium"
+              id="veresiyeCustomerCount"
+              >0 müşteri</span
+            >
+          </div>
+          <input
+            type="text"
+            id="filterVeresiyeSearch"
+            oninput="renderVeresiye()"
+            placeholder="Müşteri adına göre ara..."
+            class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-medium text-slate-800 outline-none shadow-xs"
+          />
+          <div id="veresiyeListContainer" class="space-y-2.5"></div>
         </div>
       </div>
 
@@ -1148,6 +1251,76 @@
         </div>
       </div>
     </main>
+
+    <!-- VERESİYE İŞLEM MODALI -->
+    <div
+      id="veresiyeTxModal"
+      class="hidden fixed top-0 left-0 w-full h-[100dvh] bg-slate-900/60 backdrop-blur-xs z-[100] flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+      >
+        <div class="flex justify-between items-center">
+          <h3
+            class="font-bold text-sm text-slate-800 flex items-center gap-2"
+            id="veresiyeTxTitle"
+          >
+            İşlem Yap
+          </h3>
+          <button
+            onclick="closeVeresiyeTxModal()"
+            class="text-slate-400 hover:text-slate-600"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1"
+              >İşlem Tutarı (₺) *</label
+            >
+            <div
+              onclick="openKeypad('veresiyeTxAmount', 'İşlem Tutarı (₺)', true)"
+              class="flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl h-12 px-3 cursor-pointer"
+            >
+              <input
+                type="text"
+                id="veresiyeTxAmount"
+                readonly
+                placeholder="0"
+                class="w-full text-center text-lg font-black text-slate-800 outline-none pointer-events-none bg-transparent"
+              />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1"
+              >Açıklama / Not</label
+            >
+            <input
+              type="text"
+              id="veresiyeTxNote"
+              placeholder="Örn: 20 Koli Su Verildi"
+              class="w-full border border-slate-200 rounded-xl p-3 text-xs font-medium text-slate-800 outline-none bg-slate-50"
+            />
+          </div>
+        </div>
+        <div class="flex gap-2 pt-1">
+          <button
+            onclick="closeVeresiyeTxModal()"
+            class="w-1/2 py-3 text-xs font-semibold text-slate-600 bg-slate-100 rounded-xl"
+          >
+            Vazgeç
+          </button>
+          <button
+            onclick="saveVeresiyeTransaction()"
+            id="veresiyeTxSaveBtn"
+            class="w-1/2 py-3 text-xs font-bold text-white rounded-xl shadow-sm"
+          >
+            Kaydet
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- KATALOG DÜZENLEME MODALI -->
     <div
@@ -1300,7 +1473,7 @@
       </div>
     </div>
 
-    <!-- DOKUNMATİK TUŞ TAKIMI (GÜNCELLENDİ) -->
+    <!-- DOKUNMATİK TUŞ TAKIMI -->
     <div
       id="keypadModal"
       class="hidden fixed top-0 left-0 w-full h-[100dvh] bg-slate-900/60 backdrop-blur-2xs z-[100] flex items-center justify-center p-4"
@@ -1724,6 +1897,7 @@
 
       let records = [];
       let financeRecords = [];
+      let veresiyeRecords = [];
       let activityLogs = [];
       let productCatalog = Object.assign({}, BASE_CATALOG);
 
@@ -1734,6 +1908,10 @@
       let selectedShipments = new Set();
       let selectedFinances = new Set();
       let finChartInstance = null;
+
+      // Veresiye değişkenleri
+      let currentVeresiyeId = null;
+      let currentVeresiyeType = "borc";
 
       const EXPENSE_CATEGORIES = [
         "Doğalgaz",
@@ -1807,6 +1985,64 @@
       }
 
       // ==========================================
+      // EXCEL DIŞA AKTARIM (SheetJS)
+      // ==========================================
+      function exportToExcel(type) {
+        let data = [];
+        let filename = "";
+
+        if (type === "shipment") {
+          filename = "Sevkiyat_Gecmisi.xlsx";
+          data = records.map((r) => {
+            let itemsStr = (r.items || [])
+              .map((i) => `${i.name} (${i.boxes} Koli/Bidon)`)
+              .join(" + ");
+            return {
+              Tarih: r.dateStr,
+              "İrsaliye/Not": r.note || "",
+              "Toplam Tutar (₺)": r.totalAmount || 0,
+              "Ödeme Durumu": r.isPaid ? "Ödendi" : "Ödenmedi",
+              "İşlem Kalemleri": itemsStr,
+              "Gelen Palet": r.hasPalletTracking ? r.palletsIn : 0,
+              "Verilen Palet": r.hasPalletTracking ? r.palletsOut : 0,
+            };
+          });
+        } else if (type === "finance") {
+          filename = "Finans_Gecmisi.xlsx";
+          data = financeRecords.map((f) => {
+            return {
+              Tarih: f.dateStr,
+              Kategori: f.category || "",
+              "İşlem Tipi": f.type === "income" ? "Gelir" : "Gider",
+              "Tutar (₺)": f.amount || 0,
+              "Ödeme Yöntemi": f.bank || "",
+              Açıklama: f.note || "",
+            };
+          });
+        } else if (type === "veresiye") {
+          filename = "Veresiye_Musteri_Listesi.xlsx";
+          data = veresiyeRecords.map((v) => {
+            return {
+              "Müşteri/Cari Adı": v.name || "",
+              Telefon: v.phone || "",
+              "Güncel Bakiye (₺)": v.balance || 0,
+              "Kayıt Tarihi": v.dateStr || "",
+            };
+          });
+        }
+
+        if (data.length === 0)
+          return alert("Dışa aktarılacak kayıt bulunamadı.");
+
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Geçmiş");
+        XLSX.writeFile(workbook, filename);
+
+        logActivity(`Excel dışa aktarımı yapıldı: ${filename}`);
+      }
+
+      // ==========================================
       // CANLI REALTIME BULUT SENKRONİZASYONU
       // ==========================================
       function bindRealtimeSync() {
@@ -1865,7 +2101,31 @@
           financeRecords = arr.sort(
             (a, b) => (b.timestamp || 0) - (a.timestamp || 0),
           );
-          renderFinance();
+          if (
+            document
+              .getElementById("financeView")
+              .classList.contains("hidden") === false
+          ) {
+            renderFinance();
+          }
+        });
+
+        // Veresiye Dinleyicisi
+        activeStoreRef.child("veresiye").on("value", (snapshot) => {
+          const arr = [];
+          snapshot.forEach((child) => {
+            arr.push(child.val());
+          });
+          veresiyeRecords = arr.sort(
+            (a, b) => (b.timestamp || 0) - (a.timestamp || 0),
+          );
+          if (
+            document
+              .getElementById("veresiyeView")
+              .classList.contains("hidden") === false
+          ) {
+            renderVeresiye();
+          }
         });
 
         activeStoreRef
@@ -1935,24 +2195,35 @@
       function switchMainTab(tab) {
         const shipBtn = document.getElementById("mainTabShipment");
         const finBtn = document.getElementById("mainTabFinance");
+        const verBtn = document.getElementById("mainTabVeresiye");
         const shipView = document.getElementById("shipmentView");
         const finView = document.getElementById("financeView");
+        const verView = document.getElementById("veresiyeView");
+
+        shipBtn.className =
+          "py-2 text-[11px] sm:text-xs font-bold rounded-xl transition text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1";
+        finBtn.className =
+          "py-2 text-[11px] sm:text-xs font-bold rounded-xl transition text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1";
+        verBtn.className =
+          "py-2 text-[11px] sm:text-xs font-bold rounded-xl transition text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1";
+        shipView.classList.add("hidden");
+        finView.classList.add("hidden");
+        verView.classList.add("hidden");
 
         if (tab === "finance") {
           finBtn.className =
-            "py-2.5 text-xs font-bold rounded-xl transition bg-blue-600 text-white shadow-xs flex items-center justify-center gap-1.5";
-          shipBtn.className =
-            "py-2.5 text-xs font-bold rounded-xl transition text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1.5";
+            "py-2 text-[11px] sm:text-xs font-bold rounded-xl transition bg-blue-600 text-white shadow-xs flex items-center justify-center gap-1";
           finView.classList.remove("hidden");
-          shipView.classList.add("hidden");
           renderFinance();
+        } else if (tab === "veresiye") {
+          verBtn.className =
+            "py-2 text-[11px] sm:text-xs font-bold rounded-xl transition bg-blue-600 text-white shadow-xs flex items-center justify-center gap-1";
+          verView.classList.remove("hidden");
+          renderVeresiye();
         } else {
           shipBtn.className =
-            "py-2.5 text-xs font-bold rounded-xl transition bg-blue-600 text-white shadow-xs flex items-center justify-center gap-1.5";
-          finBtn.className =
-            "py-2.5 text-xs font-bold rounded-xl transition text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1.5";
+            "py-2 text-[11px] sm:text-xs font-bold rounded-xl transition bg-blue-600 text-white shadow-xs flex items-center justify-center gap-1";
           shipView.classList.remove("hidden");
-          finView.classList.add("hidden");
         }
       }
 
@@ -2352,6 +2623,185 @@
       }
 
       // ==========================================
+      // VERESİYE (CARİ) İŞLEMLERİ
+      // ==========================================
+      function addVeresiyeCustomer() {
+        const name = document.getElementById("veresiyeName").value.trim();
+        const phone = document.getElementById("veresiyePhone").value.trim();
+
+        if (!name) return alert("Lütfen müşteri adını girin.");
+
+        const newId = "ver_" + Date.now();
+        const now = new Date();
+        const newCustomer = {
+          id: newId,
+          name: name,
+          phone: phone,
+          balance: 0,
+          dateStr: now.toLocaleDateString("tr-TR"),
+          timestamp: Date.now(),
+        };
+
+        activeStoreRef
+          .child(`veresiye/${newId}`)
+          .set(newCustomer)
+          .then(() => {
+            logActivity(`Yeni cari hesap açıldı: ${name}`);
+            document.getElementById("veresiyeName").value = "";
+            document.getElementById("veresiyePhone").value = "";
+          })
+          .catch((err) => alert("Kayıt oluşturulamadı: " + err.message));
+      }
+
+      function deleteVeresiyeCustomer(id) {
+        if (
+          confirm(
+            "Bu müşteriyi ve tüm bakiyesini tamamen silmek istediğinize emin misiniz?",
+          )
+        ) {
+          activeStoreRef
+            .child(`veresiye/${id}`)
+            .remove()
+            .then(() => logActivity("Cari hesap silindi."))
+            .catch((err) => alert("Silinemedi: " + err.message));
+        }
+      }
+
+      function openVeresiyeTxModal(id, type, name) {
+        currentVeresiyeId = id;
+        currentVeresiyeType = type;
+
+        const titleElem = document.getElementById("veresiyeTxTitle");
+        const btnElem = document.getElementById("veresiyeTxSaveBtn");
+
+        if (type === "borc") {
+          titleElem.innerHTML = `<i class="fa-solid fa-plus-circle text-rose-600"></i> Borç Yaz: ${name}`;
+          btnElem.className =
+            "w-1/2 py-3 text-xs font-bold text-white rounded-xl shadow-sm bg-rose-600 hover:bg-rose-700";
+        } else {
+          titleElem.innerHTML = `<i class="fa-solid fa-hand-holding-dollar text-emerald-600"></i> Tahsilat Al: ${name}`;
+          btnElem.className =
+            "w-1/2 py-3 text-xs font-bold text-white rounded-xl shadow-sm bg-emerald-600 hover:bg-emerald-700";
+        }
+
+        document.getElementById("veresiyeTxAmount").value = "";
+        document.getElementById("veresiyeTxNote").value = "";
+        document.getElementById("veresiyeTxModal").classList.remove("hidden");
+      }
+
+      function closeVeresiyeTxModal() {
+        document.getElementById("veresiyeTxModal").classList.add("hidden");
+      }
+
+      function saveVeresiyeTransaction() {
+        const amount =
+          parseFloat(document.getElementById("veresiyeTxAmount").value) || 0;
+        const note = document.getElementById("veresiyeTxNote").value.trim();
+
+        if (amount <= 0) return alert("Lütfen geçerli bir tutar girin.");
+        if (!currentVeresiyeId) return;
+
+        const customer = veresiyeRecords.find(
+          (v) => v.id === currentVeresiyeId,
+        );
+        if (!customer) return;
+
+        let oldBalance = customer.balance || 0;
+        let newBalance = oldBalance;
+
+        if (currentVeresiyeType === "borc") {
+          newBalance += amount;
+        } else {
+          newBalance -= amount;
+        }
+
+        activeStoreRef
+          .child(`veresiye/${currentVeresiyeId}/balance`)
+          .set(newBalance)
+          .then(() => {
+            logActivity(
+              `${customer.name} - ${currentVeresiyeType === "borc" ? "Borç Eklendi" : "Tahsilat Alındı"}: ${amount.toLocaleString("tr-TR")} ₺`,
+            );
+            closeVeresiyeTxModal();
+          })
+          .catch((err) => alert("İşlem kaydedilemedi: " + err.message));
+      }
+
+      function renderVeresiye() {
+        const container = document.getElementById("veresiyeListContainer");
+        const searchText = (
+          document.getElementById("filterVeresiyeSearch").value || ""
+        ).toLowerCase();
+
+        let totalReceivables = 0;
+
+        const filtered = veresiyeRecords.filter((v) => {
+          totalReceivables += v.balance || 0;
+          if (searchText && !(v.name || "").toLowerCase().includes(searchText))
+            return false;
+          return true;
+        });
+
+        document.getElementById("veresiyeCustomerCount").innerText =
+          filtered.length + " müşteri";
+        document.getElementById("veresiyeTotalBalance").innerText =
+          totalReceivables.toLocaleString("tr-TR", {
+            minimumFractionDigits: 2,
+          }) + " ₺";
+
+        if (filtered.length === 0) {
+          container.innerHTML =
+            '<div class="text-center text-slate-400 py-6 text-xs">Kayıt bulunamadı.</div>';
+          return;
+        }
+
+        container.innerHTML = filtered
+          .map((v) => {
+            const bal = v.balance || 0;
+            let balColor =
+              bal > 0
+                ? "text-rose-600"
+                : bal < 0
+                  ? "text-emerald-600"
+                  : "text-slate-600";
+            let balLabel =
+              bal > 0 ? "Borçlu" : bal < 0 ? "Alacaklı" : "Dengede";
+
+            return `
+          <div class="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-xs space-y-3 relative">
+            <button onclick="deleteVeresiyeCustomer('${v.id}')" class="absolute top-3 right-3 text-slate-300 hover:text-rose-600"><i class="fa-solid fa-trash-can"></i></button>
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">
+                ${(v.name || "M")[0].toUpperCase()}
+              </div>
+              <div>
+                <h4 class="text-sm font-bold text-slate-800 pr-6">${v.name}</h4>
+                ${v.phone ? `<p class="text-[10px] text-slate-500 font-medium">${v.phone}</p>` : ""}
+              </div>
+            </div>
+            
+            <div class="flex items-end justify-between bg-slate-50 rounded-xl p-2.5 border border-slate-100">
+              <div>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Güncel Bakiye</span>
+                <span class="text-lg font-black ${balColor}">${Math.abs(bal).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ₺</span>
+                <span class="text-[10px] font-bold ${balColor} ml-1">${balLabel}</span>
+              </div>
+              <div class="flex gap-1.5">
+                <button onclick="openVeresiyeTxModal('${v.id}', 'tahsilat', '${v.name}')" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 py-2 rounded-lg text-[11px] font-bold transition">
+                  <i class="fa-solid fa-minus"></i> Tahsilat
+                </button>
+                <button onclick="openVeresiyeTxModal('${v.id}', 'borc', '${v.name}')" class="bg-rose-100 hover:bg-rose-200 text-rose-700 px-3 py-2 rounded-lg text-[11px] font-bold transition">
+                  <i class="fa-solid fa-plus"></i> Borç
+                </button>
+              </div>
+            </div>
+          </div>
+          `;
+          })
+          .join("");
+      }
+
+      // ==========================================
       // MOD & HESAPLAMALAR
       // ==========================================
       function populateCategories() {
@@ -2724,6 +3174,8 @@
           else if (activeKeypadTargetId.startsWith("milk")) calcMilkSubtotal();
           else if (activeKeypadTargetId.startsWith("tursu"))
             calcTursuSubtotal();
+          else if (activeKeypadTargetId === "veresiyeTxAmount") {
+          } // Veresiye modal does not need calculation trigger
           else calcDraftSubtotal();
         }
         document.getElementById("keypadModal").classList.add("hidden");

@@ -170,7 +170,7 @@
           </div>
         </div>
 
-        <!-- MOD SEÇİM SEKME BUTONLARI (İÇECEK / GÜNLÜK SÜT / TURŞU) -->
+        <!-- MOD SEÇİM SEKME BUTONLARI -->
         <div class="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl">
           <button type="button" id="tabBeverageBtn" onclick="switchEntryMode('beverage')" class="py-2 text-[11px] sm:text-xs font-bold rounded-lg transition shadow-xs bg-white text-blue-700 truncate">
             <i class="fa-solid fa-bottle-water mr-1"></i> Su & Meşrubat
@@ -840,7 +840,6 @@
     let selectedMilkVolume = 5;
     let currentFinanceType = 'expense';
 
-    // Seçerek silme durumları
     let shipmentSelectMode = false;
     let financeSelectMode = false;
     let selectedShipmentIds = new Set();
@@ -946,7 +945,6 @@
       }
     }
 
-    // --- SEÇEREK SİLME MANTIĞI ---
     function toggleSelectMode(type) {
       if (type === 'shipment') {
         shipmentSelectMode = !shipmentSelectMode;
@@ -1010,6 +1008,7 @@
           records = records.filter(r => !selectedShipmentIds.has(r.id));
           saveLocal();
           logActivity(`${selectedShipmentIds.size} adet sevkiyat kaydı toplu olarak silindi.`);
+          sendSyncMessage({ type: 'BULK_DELETE_SHIPMENT', ids: Array.from(selectedShipmentIds), logText: activityLogs[0].text });
           selectedShipmentIds.clear();
           toggleSelectMode('shipment');
           renderAll();
@@ -1020,6 +1019,7 @@
           financeRecords = financeRecords.filter(f => !selectedFinanceIds.has(f.id));
           saveFinanceLocal();
           logActivity(`${selectedFinanceIds.size} adet finansal işlem toplu olarak silindi.`);
+          sendSyncMessage({ type: 'BULK_DELETE_FINANCE', ids: Array.from(selectedFinanceIds), logText: activityLogs[0].text });
           selectedFinanceIds.clear();
           toggleSelectMode('finance');
           renderFinance();
@@ -1961,6 +1961,12 @@
               records = records.filter(r => r.id !== data.id);
               saveLocal();
               renderAll();
+            } else if (data.type === 'BULK_DELETE_SHIPMENT') {
+              if (data.ids && Array.isArray(data.ids)) {
+                records = records.filter(r => !data.ids.includes(r.id));
+                saveLocal();
+                renderAll();
+              }
             } else if (data.type === 'UPDATE_PAYMENT') {
               const shipment = records.find(r => r.id === data.id);
               if (shipment) {
@@ -1978,6 +1984,12 @@
               financeRecords = financeRecords.filter(f => f.id !== data.id);
               saveFinanceLocal();
               renderFinance();
+            } else if (data.type === 'BULK_DELETE_FINANCE') {
+              if (data.ids && Array.isArray(data.ids)) {
+                financeRecords = financeRecords.filter(f => !data.ids.includes(f.id));
+                saveFinanceLocal();
+                renderFinance();
+              }
             } else if (data.type === 'UPDATE_CATALOG') {
               productCatalog = data.catalog;
               saveCatalogLocal();

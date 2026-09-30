@@ -897,10 +897,10 @@
             </h3>
             <div class="flex items-center gap-2">
               <button
-                onclick="exportToExcel('shipment')"
+                onclick="exportAllToExcel()"
                 class="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg border border-emerald-200 shadow-sm active:scale-95 transition"
               >
-                <i class="fa-solid fa-file-excel"></i> Excel
+                <i class="fa-solid fa-file-excel"></i> Tüm Veriler
               </button>
               <button
                 id="btnDeleteSelectedShipments"
@@ -1125,10 +1125,10 @@
             </h3>
             <div class="flex items-center gap-2">
               <button
-                onclick="exportToExcel('finance')"
+                onclick="exportAllToExcel()"
                 class="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg border border-emerald-200 shadow-sm active:scale-95 transition"
               >
-                <i class="fa-solid fa-file-excel"></i> Excel
+                <i class="fa-solid fa-file-excel"></i> Tüm Veriler
               </button>
               <button
                 id="btnDeleteSelectedFinances"
@@ -1170,10 +1170,10 @@
             </p>
           </div>
           <button
-            onclick="exportToExcel('veresiye')"
+            onclick="exportAllToExcel()"
             class="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-3 py-2.5 rounded-xl border border-emerald-200 shadow-sm active:scale-95 transition flex items-center gap-1.5"
           >
-            <i class="fa-solid fa-file-excel text-sm"></i> Excel
+            <i class="fa-solid fa-file-excel text-sm"></i> Tüm Veriler (Excel)
           </button>
         </div>
 
@@ -1985,61 +1985,83 @@
       }
 
       // ==========================================
-      // EXCEL DIŞA AKTARIM (SheetJS)
+      // EXCEL DIŞA AKTARIM (SheetJS) - TÜM VERİLER
       // ==========================================
-      function exportToExcel(type) {
-        let data = [];
-        let filename = "";
-
-        if (type === "shipment") {
-          filename = "Sevkiyat_Gecmisi.xlsx";
-          data = records.map((r) => {
-            let itemsStr = (r.items || [])
-              .map((i) => `${i.name} (${i.boxes} Koli/Bidon)`)
-              .join(" + ");
-            return {
-              Tarih: r.dateStr,
-              "İrsaliye/Not": r.note || "",
-              "Toplam Tutar (₺)": r.totalAmount || 0,
-              "Ödeme Durumu": r.isPaid ? "Ödendi" : "Ödenmedi",
-              "İşlem Kalemleri": itemsStr,
-              "Gelen Palet": r.hasPalletTracking ? r.palletsIn : 0,
-              "Verilen Palet": r.hasPalletTracking ? r.palletsOut : 0,
-            };
-          });
-        } else if (type === "finance") {
-          filename = "Finans_Gecmisi.xlsx";
-          data = financeRecords.map((f) => {
-            return {
-              Tarih: f.dateStr,
-              Kategori: f.category || "",
-              "İşlem Tipi": f.type === "income" ? "Gelir" : "Gider",
-              "Tutar (₺)": f.amount || 0,
-              "Ödeme Yöntemi": f.bank || "",
-              Açıklama: f.note || "",
-            };
-          });
-        } else if (type === "veresiye") {
-          filename = "Veresiye_Musteri_Listesi.xlsx";
-          data = veresiyeRecords.map((v) => {
-            return {
-              "Müşteri/Cari Adı": v.name || "",
-              Telefon: v.phone || "",
-              "Güncel Bakiye (₺)": v.balance || 0,
-              "Kayıt Tarihi": v.dateStr || "",
-            };
-          });
-        }
-
-        if (data.length === 0)
-          return alert("Dışa aktarılacak kayıt bulunamadı.");
-
-        const worksheet = XLSX.utils.json_to_sheet(data);
+      function exportAllToExcel() {
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Geçmiş");
-        XLSX.writeFile(workbook, filename);
 
-        logActivity(`Excel dışa aktarımı yapıldı: ${filename}`);
+        // 1. Sevkiyat Geçmişi
+        const shipmentData = records.map((r) => {
+          let itemsStr = (r.items || [])
+            .map((i) => `${i.name} (${i.boxes} Koli/Bidon)`)
+            .join(" + ");
+          return {
+            Tarih: r.dateStr,
+            "İrsaliye/Not": r.note || "",
+            "Toplam Tutar (₺)": r.totalAmount || 0,
+            "Ödeme Durumu": r.isPaid ? "Ödendi" : "Ödenmedi",
+            "İşlem Kalemleri": itemsStr,
+            "Gelen Palet": r.hasPalletTracking ? r.palletsIn : 0,
+            "Verilen Palet": r.hasPalletTracking ? r.palletsOut : 0,
+          };
+        });
+        const wsShipment = XLSX.utils.json_to_sheet(
+          shipmentData.length ? shipmentData : [{ Bilgi: "Kayıt yok" }],
+        );
+        XLSX.utils.book_append_sheet(workbook, wsShipment, "Sevkiyat_Gecmisi");
+
+        // 2. Kasa ve Finans
+        const financeData = financeRecords.map((f) => {
+          return {
+            Tarih: f.dateStr,
+            Kategori: f.category || "",
+            "İşlem Tipi": f.type === "income" ? "Gelir" : "Gider",
+            "Tutar (₺)": f.amount || 0,
+            "Ödeme Yöntemi": f.bank || "",
+            Açıklama: f.note || "",
+          };
+        });
+        const wsFinance = XLSX.utils.json_to_sheet(
+          financeData.length ? financeData : [{ Bilgi: "Kayıt yok" }],
+        );
+        XLSX.utils.book_append_sheet(workbook, wsFinance, "Finans_Gecmisi");
+
+        // 3. Veresiye Cari
+        const veresiyeData = veresiyeRecords.map((v) => {
+          return {
+            "Müşteri/Cari Adı": v.name || "",
+            Telefon: v.phone || "",
+            "Güncel Bakiye (₺)": v.balance || 0,
+            "Kayıt Tarihi": v.dateStr || "",
+          };
+        });
+        const wsVeresiye = XLSX.utils.json_to_sheet(
+          veresiyeData.length ? veresiyeData : [{ Bilgi: "Kayıt yok" }],
+        );
+        XLSX.utils.book_append_sheet(
+          workbook,
+          wsVeresiye,
+          "Veresiye_Musteriler",
+        );
+
+        // 4. Sistem Logları
+        const logData = activityLogs.map((l) => {
+          return {
+            "Tarih/Saat": l.timeStr || "",
+            Aktivite: l.text || "",
+          };
+        });
+        const wsLogs = XLSX.utils.json_to_sheet(
+          logData.length ? logData : [{ Bilgi: "Kayıt yok" }],
+        );
+        XLSX.utils.book_append_sheet(workbook, wsLogs, "Sistem_Loglari");
+
+        const now = new Date();
+        const dateStr = now.toLocaleDateString("tr-TR").replace(/\./g, "-");
+        const filename = `Tum_Sistem_Yedek_${dateStr}.xlsx`;
+
+        XLSX.writeFile(workbook, filename);
+        logActivity(`Tüm sistem verileri Excel olarak dışa aktarıldı.`);
       }
 
       // ==========================================

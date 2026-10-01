@@ -897,12 +897,6 @@
             </h3>
             <div class="flex items-center gap-2">
               <button
-                onclick="exportAllToExcel()"
-                class="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg border border-emerald-200 shadow-sm active:scale-95 transition"
-              >
-                <i class="fa-solid fa-file-excel"></i> Tüm Veriler
-              </button>
-              <button
                 id="btnDeleteSelectedShipments"
                 onclick="deleteSelectedShipments()"
                 class="hidden text-[10px] font-bold bg-rose-100 text-rose-700 px-2 py-1 rounded-lg border border-rose-200 shadow-sm active:scale-95 transition"
@@ -1018,6 +1012,99 @@
           </div>
         </div>
 
+        <!-- GÜNLÜK CİRO GİRİŞİ -->
+        <div
+          class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-3"
+        >
+          <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-cash-register text-emerald-600"></i> Gün Sonu
+            Ciro Girişi
+          </h3>
+          <div class="grid grid-cols-2 gap-3">
+            <div
+              class="bg-emerald-50/50 p-2 rounded-xl border border-emerald-100 text-center"
+            >
+              <span class="text-[10px] font-bold text-emerald-600 uppercase"
+                >Nakit Ciro Toplam</span
+              >
+              <div
+                class="text-sm font-black text-emerald-700 mt-0.5"
+                id="finTotalCiroNakit"
+              >
+                0,00 ₺
+              </div>
+            </div>
+            <div
+              class="bg-blue-50/50 p-2 rounded-xl border border-blue-100 text-center"
+            >
+              <span class="text-[10px] font-bold text-blue-600 uppercase"
+                >Banka Ciro Toplam</span
+              >
+              <div
+                class="text-sm font-black text-blue-700 mt-0.5"
+                id="finTotalCiroBanka"
+              >
+                0,00 ₺
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3 pt-2">
+            <div>
+              <label
+                class="block text-[11px] font-bold text-slate-700 mb-1 text-center"
+                >Nakit (Elden) ₺</label
+              >
+              <div
+                onclick="openKeypad('ciroNakit', 'Nakit Ciro (₺)', true)"
+                class="flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl h-10 px-2 cursor-pointer shadow-2xs"
+              >
+                <input
+                  type="text"
+                  id="ciroNakit"
+                  readonly
+                  placeholder="0"
+                  class="w-full text-center text-sm font-black text-emerald-600 outline-none pointer-events-none bg-transparent"
+                />
+              </div>
+            </div>
+            <div>
+              <label
+                class="block text-[11px] font-bold text-slate-700 mb-1 text-center"
+                >Banka (POS) ₺</label
+              >
+              <div
+                onclick="openKeypad('ciroBanka', 'Banka Ciro (₺)', true)"
+                class="flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl h-10 px-2 cursor-pointer shadow-2xs"
+              >
+                <input
+                  type="text"
+                  id="ciroBanka"
+                  readonly
+                  placeholder="0"
+                  class="w-full text-center text-sm font-black text-blue-600 outline-none pointer-events-none bg-transparent"
+                />
+              </div>
+            </div>
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1"
+              >Ciro Tarihi</label
+            >
+            <input
+              type="date"
+              id="ciroDate"
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs text-slate-700 outline-none"
+            />
+          </div>
+          <button
+            type="button"
+            onclick="saveCiro()"
+            class="w-full bg-slate-800 hover:bg-slate-900 text-white font-black py-2.5 rounded-xl shadow-md active:scale-[0.99] transition text-xs flex items-center justify-center gap-1.5"
+          >
+            <i class="fa-solid fa-check-double"></i> Ciro Kaydını Ekle
+          </button>
+        </div>
+
         <!-- Yeni Gider / Gelir Formu -->
         <div
           class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-3.5"
@@ -1124,12 +1211,6 @@
               Gider Geçmişi
             </h3>
             <div class="flex items-center gap-2">
-              <button
-                onclick="exportAllToExcel()"
-                class="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg border border-emerald-200 shadow-sm active:scale-95 transition"
-              >
-                <i class="fa-solid fa-file-excel"></i> Tüm Veriler
-              </button>
               <button
                 id="btnDeleteSelectedFinances"
                 onclick="deleteSelectedFinances()"
@@ -1927,6 +2008,8 @@
       const INCOME_CATEGORIES = [
         "Müşteri Tahsilatı",
         "Nakit Satış",
+        "Günlük Ciro (Nakit)",
+        "Günlük Ciro (Banka/POS)",
         "Diğer Gelirler",
       ];
       const TURSU_VARIETIES = [
@@ -1982,6 +2065,7 @@
           .toISOString()
           .slice(0, 16);
         document.getElementById("shipmentDate").value = localIso;
+        document.getElementById("ciroDate").value = localIso.split("T")[0];
       }
 
       // ==========================================
@@ -2401,7 +2485,7 @@
       }
 
       // ==========================================
-      // FİNANS İŞLEMLERİ
+      // FİNANS İŞLEMLERİ (GÜNLÜK CİRO DAHİL)
       // ==========================================
       function setFinanceType(type) {
         currentFinanceType = type;
@@ -2434,6 +2518,66 @@
           opt.textContent = cat;
           select.appendChild(opt);
         });
+      }
+
+      function saveCiro() {
+        const nakit =
+          parseFloat(document.getElementById("ciroNakit").value) || 0;
+        const banka =
+          parseFloat(document.getElementById("ciroBanka").value) || 0;
+
+        if (nakit <= 0 && banka <= 0)
+          return alert("Lütfen en az bir ciro tutarı girin.");
+
+        const dateVal = document.getElementById("ciroDate").value;
+        const now = new Date();
+        let txDate = now;
+        if (dateVal) {
+          const [y, m, d] = dateVal.split("-");
+          txDate = new Date(y, m - 1, d, now.getHours(), now.getMinutes());
+        }
+        const dateStr =
+          txDate.toLocaleDateString("tr-TR") +
+          " " +
+          txDate.toLocaleTimeString("tr-TR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+        if (nakit > 0) {
+          const idN = "fin_" + Date.now() + "_N";
+          activeStoreRef.child(`finances/${idN}`).set({
+            id: idN,
+            type: "income",
+            category: "Günlük Ciro (Nakit)",
+            amount: nakit,
+            bank: "Nakit Kasa",
+            note: "Gün Sonu Cirosu",
+            dateStr: dateStr,
+            rawDate: txDate.toISOString(),
+            timestamp: Date.now(),
+          });
+        }
+        if (banka > 0) {
+          const idB = "fin_" + (Date.now() + 1) + "_B";
+          activeStoreRef.child(`finances/${idB}`).set({
+            id: idB,
+            type: "income",
+            category: "Günlük Ciro (Banka/POS)",
+            amount: banka,
+            bank: "Kredi Kartı",
+            note: "Gün Sonu Cirosu",
+            dateStr: dateStr,
+            rawDate: txDate.toISOString(),
+            timestamp: Date.now() + 1,
+          });
+        }
+
+        logActivity(
+          `Gün sonu cirosu eklendi (Nakit: ${nakit}₺, Banka: ${banka}₺).`,
+        );
+        document.getElementById("ciroNakit").value = "";
+        document.getElementById("ciroBanka").value = "";
       }
 
       function saveFinanceTransaction() {
@@ -2589,6 +2733,9 @@
 
         let totalIncome = 0,
           totalExpense = 0;
+        let totalCiroNakit = 0,
+          totalCiroBanka = 0;
+
         if (financeRecords.length === 0) {
           container.innerHTML =
             '<div class="text-center text-slate-400 py-6 text-xs">Henüz işlem bulunmuyor.</div>';
@@ -2598,6 +2745,11 @@
               const isInc = f.type === "income";
               if (isInc) totalIncome += f.amount || 0;
               else totalExpense += f.amount || 0;
+
+              if (f.category === "Günlük Ciro (Nakit)")
+                totalCiroNakit += f.amount || 0;
+              if (f.category === "Günlük Ciro (Banka/POS)")
+                totalCiroBanka += f.amount || 0;
 
               const icon = isInc
                 ? "fa-arrow-trend-up text-emerald-600"
@@ -2640,6 +2792,13 @@
         netElem.innerText =
           net.toLocaleString("tr-TR", { minimumFractionDigits: 2 }) + " ₺";
         netElem.className = `text-sm sm:text-base font-black mt-1 ${net >= 0 ? "text-blue-600" : "text-rose-600"}`;
+
+        document.getElementById("finTotalCiroNakit").innerText =
+          totalCiroNakit.toLocaleString("tr-TR", { minimumFractionDigits: 2 }) +
+          " ₺";
+        document.getElementById("finTotalCiroBanka").innerText =
+          totalCiroBanka.toLocaleString("tr-TR", { minimumFractionDigits: 2 }) +
+          " ₺";
 
         renderFinanceChart();
       }
@@ -3198,6 +3357,8 @@
             calcTursuSubtotal();
           else if (activeKeypadTargetId === "veresiyeTxAmount") {
           } // Veresiye modal does not need calculation trigger
+          else if (activeKeypadTargetId.startsWith("ciro")) {
+          } // Günlük ciro inputs
           else calcDraftSubtotal();
         }
         document.getElementById("keypadModal").classList.add("hidden");

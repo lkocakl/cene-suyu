@@ -897,6 +897,12 @@
             </h3>
             <div class="flex items-center gap-2">
               <button
+                onclick="exportAllToExcel()"
+                class="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg border border-emerald-200 shadow-sm active:scale-95 transition"
+              >
+                <i class="fa-solid fa-file-excel"></i> Tüm Veriler
+              </button>
+              <button
                 id="btnDeleteSelectedShipments"
                 onclick="deleteSelectedShipments()"
                 class="hidden text-[10px] font-bold bg-rose-100 text-rose-700 px-2 py-1 rounded-lg border border-rose-200 shadow-sm active:scale-95 transition"
@@ -1211,6 +1217,12 @@
               Gider Geçmişi
             </h3>
             <div class="flex items-center gap-2">
+              <button
+                onclick="exportAllToExcel()"
+                class="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg border border-emerald-200 shadow-sm active:scale-95 transition"
+              >
+                <i class="fa-solid fa-file-excel"></i> Tüm Veriler
+              </button>
               <button
                 id="btnDeleteSelectedFinances"
                 onclick="deleteSelectedFinances()"
@@ -2696,14 +2708,19 @@
         }
 
         if (finChartInstance) finChartInstance.destroy();
+
+        const hasData = incSum > 0 || expSum > 0;
+
         finChartInstance = new Chart(ctx, {
           type: "pie",
           data: {
-            labels: ["Toplam Gelir", "Toplam Gider"],
+            labels: hasData
+              ? ["Toplam Gelir", "Toplam Gider"]
+              : ["Veri Yok (Son 7 Gün)"],
             datasets: [
               {
-                data: [incSum, expSum],
-                backgroundColor: ["#10b981", "#f43f5e"],
+                data: hasData ? [incSum, expSum] : [1],
+                backgroundColor: hasData ? ["#10b981", "#f43f5e"] : ["#e2e8f0"],
                 borderWidth: 2,
                 borderColor: "#ffffff",
               },
@@ -2716,6 +2733,15 @@
               legend: {
                 position: "right",
                 labels: { font: { size: 10 }, boxWidth: 12 },
+              },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    if (!hasData) return " 0 ₺";
+                    let val = context.raw || 0;
+                    return " " + val.toLocaleString("tr-TR") + " ₺";
+                  },
+                },
               },
             },
           },
